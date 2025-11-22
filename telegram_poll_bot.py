@@ -248,31 +248,17 @@ async def set_pin_and_create(update:Update, context:ContextTypes.DEFAULT_TYPE):
 # Admin panel (inline keyboard)
 # -----------------------------------------------------------------------------
 
-async def is_user_admin(chat_id:int, user_id:int, context:ContextTypes.DEFAULT_TYPE) -> bool:
+def is_user_admin(chat_id:int, user_id:int, context:ContextTypes.DEFAULT_TYPE) -> bool:
     try:
-        mem = await context.bot.get_chat_member(chat_id, user_id)
-
-        # Gestione proprietario (owner) e creatore (creator)
-        if mem.status in ("creator", "owner"):
-            return True
-
-        # Admin regolare
-        if mem.status == "administrator":
-            # Telegram può marcare admin anonimi → bloccare accesso
-            if getattr(mem, "is_anonymous", False):
-                return False
-            return True
-
-        return False
-
+        mem = context.bot.get_chat_member(chat_id, user_id)
+        return mem.status in ('administrator','creator')
     except Exception as e:
         logger.warning("Errore controllo admin: %s", e)
         return False
 
-
 async def admin_panel(update:Update, context:ContextTypes.DEFAULT_TYPE):
     # restrict to chat admins
-    if not await is_user_admin(update.effective_chat.id, update.effective_user.id, context):
+    if not is_user_admin(update.effective_chat.id, update.effective_user.id, context):
         await update.message.reply_text("Accesso negato: solo admin possono usare il pannello.")
         return
     polls = list_polls_for_chat(update.effective_chat.id)
@@ -286,33 +272,6 @@ async def admin_panel(update:Update, context:ContextTypes.DEFAULT_TYPE):
         keyboard.append([InlineKeyboardButton(f"ID {pid}: {q[:30]}", callback_data=f"view:{pid}")])
     keyboard.append([InlineKeyboardButton("Chiudi", callback_data="close")])
     await update.message.reply_text("Pannello Admin - seleziona un sondaggio:", reply_markup=InlineKeyboardMarkup(keyboard))
-
-async def deletepoll_cmd(update: Update, context: ContextTypes.DEFAULT_TYPE):
-    chat_id = update.effective_chat.id
-
-    # Controllo admin/owner
-    if not await is_user_admin(chat_id, update.effective_user.id, context):
-        await update.message.reply_text("Solo gli admin del gruppo possono eliminare sondaggi.")
-        return
-
-    polls = list_polls_for_chat(chat_id)
-    if not polls:
-        await update.message.reply_text("Nessun sondaggio da eliminare.")
-        return
-
-    keyboard = []
-    for p in polls:
-        pid = p[0]
-        question = p[2][:30]
-        keyboard.append([InlineKeyboardButton(f"Elimina {pid}: {question}", callback_data=f"delpoll:{pid}")])
-
-    keyboard.append([InlineKeyboardButton("Chiudi", callback_data="close")])
-
-    await update.message.reply_text(
-        "Seleziona un sondaggio da eliminare:",
-        reply_markup=InlineKeyboardMarkup(keyboard)
-    )
-
 
 async def on_callback(query, context):
     data = query.data
@@ -364,13 +323,6 @@ async def on_callback(query, context):
         await query.answer("Stato cambiato")
         await query.message.delete()
         return
-        if data.startswith("delpoll:"):
-        pid = int(data.split(":", 1)[1])
-        delete_poll_db(pid)
-        await query.answer("Sondaggio eliminato")
-        await query.message.delete()
-        return
-
 
 # -----------------------------------------------------------------------------
 # Sending polls and scheduling
@@ -470,7 +422,7 @@ def main():
     app.add_handler(CommandHandler("start", start))
     app.add_handler(conv)
     app.add_handler(CommandHandler("listpolls", lambda u,c: u.message.reply_text("Use /admin to manage polls.")))
-    app.add_handler(CommandHandler("deletepoll", deletepoll_cmd))
+    app.add_handler(CommandHandler("deletepoll", lambda u,c: u.message.reply_text("Use admin panel.")))
     app.add_handler(CommandHandler("sendpollnow", lambda u,c: u.message.reply_text("Use admin panel.")))
     app.add_handler(CommandHandler("admin", admin_panel))
     app.add_handler(CallbackQueryHandler(on_callback))
