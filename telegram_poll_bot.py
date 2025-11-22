@@ -8,7 +8,7 @@ logger = logging.getLogger(__name__)
 BOT_TOKEN = os.environ.get("BOT_TOKEN")
 
 async def start(update, context):
-    await update.message.reply_text("Bot attivo e funzionante su Render!")
+    await update.message.reply_text("Bot attivo e funzionante su Railway.app!")
 
 def main():
     if not BOT_TOKEN:
