@@ -251,7 +251,7 @@ async def set_pin_and_create(update:Update, context:ContextTypes.DEFAULT_TYPE):
 def is_user_admin(chat_id:int, user_id:int, context:ContextTypes.DEFAULT_TYPE) -> bool:
     try:
         mem = context.bot.get_chat_member(chat_id, user_id)
-        return mem.status in ('administrator','creator')
+        return mem.status in ('administrator','creator', 'owner')
     except Exception as e:
         logger.warning("Errore controllo admin: %s", e)
         return False
