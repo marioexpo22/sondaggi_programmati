@@ -243,13 +243,13 @@ async def set_schedule_times(update:Update, context:ContextTypes.DEFAULT_TYPE):
 
 async def set_pin(update:Update, context:ContextTypes.DEFAULT_TYPE):
     # ask whether to pin then ask whether to delete previous
-    context.user_data['pinned'] = update.message.text.strip().lower() in ('si','s','yes','y')
+    context.user_data['pinned'] = update.message.text.strip().lower() in ('si','s','yes','y', 'Si', 'SI', 'sì', 'Sì')
     await update.message.reply_text("Vuoi eliminare automaticamente il precedente sondaggio quando questo sarà inviato? (sì/no)")
     return Q_DELETE_PREV
 
 
 async def set_delete_prev(update:Update, context:ContextTypes.DEFAULT_TYPE):
-    delete_prev = update.message.text.strip().lower() in ('si','s','yes','y')
+    delete_prev = update.message.text.strip().lower() in ('si','s','yes','y', 'Si', 'SI', 'sì', 'Sì')
     question = context.user_data.get('question')
     options = context.user_data.get('options')
     interval = context.user_data.get('interval')
