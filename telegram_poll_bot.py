@@ -69,6 +69,8 @@ def init_db():
                 schedule_times TEXT, -- JSON array of HH:MM strings
                 pinned BOOLEAN DEFAULT FALSE,
                 last_sent BIGINT DEFAULT 0,
+                last_message_id BIGINT DEFAULT NULL,
+                delete_previous BOOLEAN DEFAULT FALSE,
                 active BOOLEAN DEFAULT TRUE,
                 creator_id BIGINT
             )
@@ -88,6 +90,8 @@ def init_db():
                 schedule_times TEXT,
                 pinned INTEGER DEFAULT 0,
                 last_sent INTEGER DEFAULT 0,
+                last_message_id INTEGER DEFAULT NULL,
+                delete_previous INTEGER DEFAULT 0,
                 active INTEGER DEFAULT 1,
                 creator_id INTEGER
             )
@@ -107,33 +111,33 @@ def execute(query: str, params: Tuple = ()):
     conn.close()
     return rows
 
-def add_poll(chat_id:int, question:str, options:List[str], interval_minutes:Optional[int], schedule_times:Optional[List[str]], pinned:bool, creator_id:Optional[int]) -> int:
+def add_poll(chat_id:int, question:str, options:List[str], interval_minutes:Optional[int], schedule_times:Optional[List[str]], pinned:bool, delete_previous:bool, creator_id:Optional[int]) -> int:
     optj = json.dumps(options, ensure_ascii=False)
     timesj = json.dumps(schedule_times) if schedule_times else None
     if USE_POSTGRES:
         conn = get_conn(); cur = conn.cursor()
-        cur.execute("INSERT INTO polls (chat_id, question, options, interval_minutes, schedule_times, pinned, last_sent, active, creator_id) VALUES (%s,%s,%s,%s,%s,%s,0,TRUE,%s) RETURNING id", (chat_id, question, optj, interval_minutes, timesj, pinned, creator_id))
+        cur.execute("INSERT INTO polls (chat_id, question, options, interval_minutes, schedule_times, pinned, last_sent, last_message_id, delete_previous, active, creator_id) VALUES (%s,%s,%s,%s,%s,%s,0,NULL,%s,TRUE,%s) RETURNING id", (chat_id, question, optj, interval_minutes, timesj, pinned, 1 if delete_previous else 0, creator_id))
         pid = cur.fetchone()[0]
         conn.commit(); conn.close()
         return pid
     else:
         conn = get_conn(); cur = conn.cursor()
-        cur.execute("INSERT INTO polls (chat_id, question, options, interval_minutes, schedule_times, pinned, last_sent, active, creator_id) VALUES (?,?,?,?,?,?,?,?,?)", (chat_id, question, optj, interval_minutes, timesj, 1 if pinned else 0, 0, 1, creator_id))
+        cur.execute("INSERT INTO polls (chat_id, question, options, interval_minutes, schedule_times, pinned, last_sent, last_message_id, delete_previous, active, creator_id) VALUES (?,?,?,?,?,?,?,?,?,?,?)", (chat_id, question, optj, interval_minutes, timesj, 1 if pinned else 0, 0, None, 1 if delete_previous else 0, 1, creator_id))
         pid = cur.lastrowid; conn.commit(); conn.close()
         return pid
 
 def list_polls_for_chat(chat_id:int):
     if USE_POSTGRES:
-        rows = execute("SELECT id,chat_id,question,options,interval_minutes,schedule_times,pinned,last_sent,active,creator_id FROM polls WHERE chat_id=%s", (chat_id,))
+        rows = execute("SELECT id,chat_id,question,options,interval_minutes,schedule_times,pinned,last_sent,last_message_id,delete_previous,active,creator_id FROM polls WHERE chat_id=%s", (chat_id,))
     else:
-        rows = execute("SELECT id,chat_id,question,options,interval_minutes,schedule_times,pinned,last_sent,active,creator_id FROM polls WHERE chat_id=?", (chat_id,))
+        rows = execute("SELECT id,chat_id,question,options,interval_minutes,schedule_times,pinned,last_sent,last_message_id,delete_previous,active,creator_id FROM polls WHERE chat_id=?", (chat_id,))
     return rows or []
 
 def get_poll(poll_id:int):
     if USE_POSTGRES:
-        rows = execute("SELECT id,chat_id,question,options,interval_minutes,schedule_times,pinned,last_sent,active,creator_id FROM polls WHERE id=%s", (poll_id,))
+        rows = execute("SELECT id,chat_id,question,options,interval_minutes,schedule_times,pinned,last_sent,last_message_id,delete_previous,active,creator_id FROM polls WHERE id=%s", (poll_id,))
     else:
-        rows = execute("SELECT id,chat_id,question,options,interval_minutes,schedule_times,pinned,last_sent,active,creator_id FROM polls WHERE id=?", (poll_id,))
+        rows = execute("SELECT id,chat_id,question,options,interval_minutes,schedule_times,pinned,last_sent,last_message_id,delete_previous,active,creator_id FROM polls WHERE id=?", (poll_id,))
     return rows[0] if rows else None
 
 def update_last_sent(poll_id:int, ts:int):
@@ -141,6 +145,13 @@ def update_last_sent(poll_id:int, ts:int):
         execute("UPDATE polls SET last_sent=%s WHERE id=%s", (ts, poll_id))
     else:
         execute("UPDATE polls SET last_sent=? WHERE id=?", (ts, poll_id))
+
+
+def update_last_sent_and_message(poll_id:int, ts:int, message_id:Optional[int]):
+    if USE_POSTGRES:
+        execute("UPDATE polls SET last_sent=%s, last_message_id=%s WHERE id=%s", (ts, message_id, poll_id))
+    else:
+        execute("UPDATE polls SET last_sent=?, last_message_id=? WHERE id=?", (ts, message_id, poll_id))
 
 def set_active(poll_id:int, active:bool):
     if USE_POSTGRES:
@@ -230,18 +241,22 @@ async def set_schedule_times(update:Update, context:ContextTypes.DEFAULT_TYPE):
     await update.message.reply_text("Vuoi pinnare il sondaggio? (sì/no)")
     return Q_PIN
 
-async def set_pin_and_create(update:Update, context:ContextTypes.DEFAULT_TYPE):
-    pinned = update.message.text.strip().lower() in ('si','s','yes','y')
+async def set_pin(update:Update, context:ContextTypes.DEFAULT_TYPE):
+    # ask whether to pin then ask whether to delete previous
+    context.user_data['pinned'] = update.message.text.strip().lower() in ('si','s','yes','y')
+    await update.message.reply_text("Vuoi eliminare automaticamente il precedente sondaggio quando questo sarà inviato? (sì/no)")
+    return Q_DELETE_PREV
+
+
+async def set_delete_prev(update:Update, context:ContextTypes.DEFAULT_TYPE):
+    delete_prev = update.message.text.strip().lower() in ('si','s','yes','y')
     question = context.user_data.get('question')
     options = context.user_data.get('options')
     interval = context.user_data.get('interval')
     times = context.user_data.get('times')
-    pid = add_poll(update.effective_chat.id, question, options, interval, times, pinned, update.effective_user.id)
-    await update.message.reply_text(f"Sondaggio creato con ID {pid}.")
-    # schedule jobs for times if any will be handled on startup and we also schedule now
-    if times:
-        # schedule immediate next occurrences via job queue added later
-        pass
+    pinned = context.user_data.get('pinned', False)
+    pid = add_poll(update.effective_chat.id, question, options, interval, times, pinned, delete_prev, update.effective_user.id)
+    await update.message.reply_text(f"Sondaggio creato con ID {pid}. delete_previous={delete_prev}")
     return ConversationHandler.END
 
 # -----------------------------------------------------------------------------
@@ -335,20 +350,28 @@ async def on_callback(query, context):
 # -----------------------------------------------------------------------------
 
 async def send_poll_from_row(context, row):
-    pid, chat_id, question, opts_json, mins, timesj, pinned, last_sent, active, creator = row
+    pid, chat_id, question, opts_json, mins, timesj, pinned, last_sent, last_message_id, delete_previous, active, creator = row
     if not active:
         return
     options = json.loads(opts_json)
     try:
         msg = await context.bot.send_poll(chat_id=chat_id, question=question, options=options, is_anonymous=False)
+        message_id = msg.message_id
+        # delete previous if requested
+        if delete_previous and last_message_id:
+            try:
+                await context.bot.delete_message(chat_id=chat_id, message_id=last_message_id)
+            except Exception as e:
+                logger.warning(f"Impossibile eliminare messaggio precedente: {e}")
+        # update last_sent and last_message_id
+        update_last_sent_and_message(pid, int(time.time()), message_id)
         if pinned:
             try:
-                await context.bot.pin_chat_message(chat_id, msg.message_id)
+                await context.bot.pin_chat_message(chat_id, message_id)
             except Exception as e:
                 logger.warning("Pin failed: %s", e)
     except Exception as e:
         logger.exception("Error sending poll %s: %s", pid, e)
-
 def schedule_jobs(app):
     """Schedule jobs for polls with schedule_times and ensure interval-driven polls are handled by periodic check"""
     jq = app.job_queue
@@ -420,7 +443,8 @@ def main():
             Q_FLOWCHOICE: [MessageHandler(filters.TEXT & ~filters.COMMAND, set_flowchoice)],
             Q_INTERVAL: [MessageHandler(filters.TEXT & ~filters.COMMAND, set_interval)],
             Q_SCHEDULE: [MessageHandler(filters.TEXT & ~filters.COMMAND, set_schedule_times)],
-            Q_PIN: [MessageHandler(filters.TEXT & ~filters.COMMAND, set_pin_and_create)]
+            Q_PIN: [MessageHandler(filters.TEXT & ~filters.COMMAND, set_pin)],
+            Q_DELETE_PREV: [MessageHandler(filters.TEXT & ~filters.COMMAND, set_delete_prev)]
         },
         fallbacks=[CommandHandler("cancel", lambda u,c: ConversationHandler.END)]
     )
