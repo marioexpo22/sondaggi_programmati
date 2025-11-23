@@ -387,7 +387,7 @@ async def on_callback(update: Update, context: ContextTypes.DEFAULT_TYPE):
 # -----------------------------------------------------------------------------
 
 async def send_poll_from_row(context, row):
-    pid, chat_id, question, opts_json, mins, timesj, pinned, last_sent, active, creator, last_message_id, delete_previous = row
+    pid, chat_id, question, opts_json, mins, timesj, pinned, last_sent, last_message_id, delete_previous, active, creator = row
     if not active:
         return
     options = json.loads(opts_json)
