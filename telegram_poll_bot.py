@@ -24,7 +24,6 @@ import dateutil.parser
 
 # DB: will use psycopg2 if DATABASE_URL provided that starts with 'postgres', otherwise sqlite3
 DATABASE_URL = os.environ.get("DATABASE_URL")
-#DATABASE = os.environ.get("BOT_DB", "polls.db")
 TIMEZONE = os.environ.get("TIMEZONE", "Europe/Rome")
 
 # Telegram
@@ -40,20 +39,11 @@ logger = logging.getLogger("pollbot-adv")
 
 # DB helpers
 USE_POSTGRES = False
-if DATABASE_URL and DATABASE_URL.startswith("postgres"):
-    try:
-        import psycopg2
-        from psycopg2.extras import RealDictCursor
-        USE_POSTGRES = True
-    except Exception as e:
-        logger.warning("psycopg2 non disponibile o errore import: %s. Uso SQLite.", e)
-        USE_POSTGRES = False
-
-def get_conn():
-    if USE_POSTGRES:
-        return psycopg2.connect(DATABASE_URL)
-    #conn = sqlite3.connect(DATABASE, check_same_thread=False)
-    #return conn
+if DATABASE_URL:
+    USE_POSTGRES = True
+else:
+    USE_POSTGRES = False
+    DATABASE = "polls.db"
 
 def init_db():
     if USE_POSTGRES:
