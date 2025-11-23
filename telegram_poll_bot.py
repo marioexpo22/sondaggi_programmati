@@ -116,7 +116,7 @@ def add_poll(chat_id:int, question:str, options:List[str], interval_minutes:Opti
     timesj = json.dumps(schedule_times) if schedule_times else None
     if USE_POSTGRES:
         conn = get_conn(); cur = conn.cursor()
-        cur.execute("INSERT INTO polls (chat_id, question, options, interval_minutes, schedule_times, pinned, last_sent, last_message_id, delete_previous, active, creator_id) VALUES (%s,%s,%s,%s,%s,%s,0,NULL,%s,TRUE,%s) RETURNING id", (chat_id, question, optj, interval_minutes, timesj, pinned, 1 if delete_previous else False, creator_id))
+        cur.execute("INSERT INTO polls (chat_id, question, options, interval_minutes, schedule_times, pinned, last_sent, last_message_id, delete_previous, active, creator_id) VALUES (%s,%s,%s,%s,%s,%s,0,NULL,%s,TRUE,%s) RETURNING id", (chat_id, question, optj, interval_minutes, timesj, pinned, True if delete_previous else False, creator_id))
         pid = cur.fetchone()[0]
         conn.commit(); conn.close()
         return pid
