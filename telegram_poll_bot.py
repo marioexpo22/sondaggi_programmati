@@ -248,13 +248,27 @@ async def set_pin_and_create(update:Update, context:ContextTypes.DEFAULT_TYPE):
 # Admin panel (inline keyboard)
 # -----------------------------------------------------------------------------
 
-def is_user_admin(chat_id:int, user_id:int, context:ContextTypes.DEFAULT_TYPE) -> bool:
+async def is_user_admin(chat_id: int, user_id: int, context: ContextTypes.DEFAULT_TYPE) -> bool:
     try:
-        mem = context.bot.get_chat_member(chat_id, user_id)
-        return mem.status in ('administrator','creator', 'owner')
-    except Exception as e:
-        logger.warning("Errore controllo admin: %s", e)
+        member = await context.bot.get_chat_member(chat_id, user_id)
+
+        # Proprietario / creatore → sempre vero
+        if member.status in ("creator", "owner"):
+            return True
+
+        # Admin normali
+        if member.status == "administrator":
+            # Se l’admin è anonimo → Telegram non conferma permessi
+            if getattr(member, "is_anonymous", False):
+                return False
+            return True
+
         return False
+
+    except Exception as e:
+        logger.error(f"Errore ottenendo get_chat_member: {e}")
+        return False
+
 
 async def admin_panel(update:Update, context:ContextTypes.DEFAULT_TYPE):
     # restrict to chat admins
