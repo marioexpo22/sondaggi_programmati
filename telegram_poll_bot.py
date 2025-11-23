@@ -24,6 +24,7 @@ import dateutil.parser
 
 # DB: will use psycopg2 if DATABASE_URL provided that starts with 'postgres', otherwise sqlite3
 DATABASE_URL = os.environ.get("DATABASE_URL")
+DATABASE = os.environ.get("BOT_DB", "polls.db")
 TIMEZONE = os.environ.get("TIMEZONE", "Europe/Rome")
 
 # Telegram
@@ -39,7 +40,7 @@ logger = logging.getLogger("pollbot-adv")
 
 # DB helpers
 USE_POSTGRES = False
-if DATABASE_URL:
+if DATABASE_URL and DATABASE_URL.startswith("postgres"):
     try:
         import psycopg2
         from psycopg2.extras import RealDictCursor
@@ -51,8 +52,8 @@ if DATABASE_URL:
 def get_conn():
     if USE_POSTGRES:
         return psycopg2.connect(DATABASE_URL)
-    #conn = sqlite3.connect(DATABASE, check_same_thread=False)
-    #return conn
+    conn = sqlite3.connect(DATABASE, check_same_thread=False)
+    return conn
 
 def init_db():
     if USE_POSTGRES:
@@ -115,13 +116,13 @@ def add_poll(chat_id:int, question:str, options:List[str], interval_minutes:Opti
     timesj = json.dumps(schedule_times) if schedule_times else None
     if USE_POSTGRES:
         conn = get_conn(); cur = conn.cursor()
-        cur.execute("INSERT INTO polls (chat_id, question, options, interval_minutes, schedule_times, pinned, last_sent, last_message_id, delete_previous, active, creator_id) VALUES (%s,%s,%s,%s,%s,%s,0,NULL,%s,TRUE,%s) RETURNING id", (chat_id, question, optj, interval_minutes, timesj, pinned, bool(delete_previous), creator_id))
+        cur.execute("INSERT INTO polls (chat_id, question, options, interval_minutes, schedule_times, pinned, last_sent, last_message_id, delete_previous, active, creator_id) VALUES (%s,%s,%s,%s,%s,%s,0,NULL,%s,TRUE,%s) RETURNING id", (chat_id, question, optj, interval_minutes, timesj, pinned, 1 if delete_previous else 0, creator_id))
         pid = cur.fetchone()[0]
         conn.commit(); conn.close()
         return pid
     else:
         conn = get_conn(); cur = conn.cursor()
-        cur.execute("INSERT INTO polls (chat_id, question, options, interval_minutes, schedule_times, pinned, last_sent, last_message_id, delete_previous, active, creator_id) VALUES (?,?,?,?,?,?,?,?,?,?,?)", (chat_id, question, optj, interval_minutes, timesj, 1 if pinned else 0, 0, None, bool(delete_previous), 1, creator_id))
+        cur.execute("INSERT INTO polls (chat_id, question, options, interval_minutes, schedule_times, pinned, last_sent, last_message_id, delete_previous, active, creator_id) VALUES (?,?,?,?,?,?,?,?,?,?,?)", (chat_id, question, optj, interval_minutes, timesj, 1 if pinned else 0, 0, None, 1 if delete_previous else 0, 1, creator_id))
         pid = cur.lastrowid; conn.commit(); conn.close()
         return pid
 
@@ -242,13 +243,13 @@ async def set_schedule_times(update:Update, context:ContextTypes.DEFAULT_TYPE):
 
 async def set_pin(update:Update, context:ContextTypes.DEFAULT_TYPE):
     # ask whether to pin then ask whether to delete previous
-    context.user_data['pinned'] = update.message.text.strip().lower() in ('si','s','yes','y', 'Si', 'SI', 'sì', 'Sì')
+    context.user_data['pinned'] = update.message.text.strip().lower() in ('si','s','yes','y')
     await update.message.reply_text("Vuoi eliminare automaticamente il precedente sondaggio quando questo sarà inviato? (sì/no)")
     return Q_DELETE_PREV
 
 
 async def set_delete_prev(update:Update, context:ContextTypes.DEFAULT_TYPE):
-    delete_prev = update.message.text.strip().lower() in ('si','s','yes','y', 'Si', 'SI', 'sì', 'Sì')
+    delete_prev = update.message.text.strip().lower() in ('si','s','yes','y')
     question = context.user_data.get('question')
     options = context.user_data.get('options')
     interval = context.user_data.get('interval')
@@ -293,57 +294,31 @@ async def admin_panel(update:Update, context:ContextTypes.DEFAULT_TYPE):
     keyboard.append([InlineKeyboardButton("Chiudi", callback_data="close")])
     await update.message.reply_text("Pannello Admin - seleziona un sondaggio:", reply_markup=InlineKeyboardMarkup(keyboard))
 
-async def on_callback(update: Update, context: ContextTypes.DEFAULT_TYPE):
-    query = update.callback_query
-
-    # Protezione: l'update non è un callback → ignoriamo
-    if not query:
-        return
-
+async def on_callback(query, context):
     data = query.data
-
     if data == "close":
-        try:
-            await query.message.delete()
-        except:
-            pass
-        await query.answer()
+        await query.message.delete()
         return
-
     if data.startswith("view:"):
-        pid = int(data.split(":", 1)[1])
+        pid = int(data.split(":",1)[1])
         row = get_poll(pid)
         if not row:
             await query.answer("Sondaggio non trovato")
             return
-        
+        # build action buttons
         active = row[8] if USE_POSTGRES else row[8]
-
-        text = (
-            f"ID {row[0]}\n"
-            f"Domanda: {row[2]}\n"
-            f"Opzioni: {len(json.loads(row[3]))}\n"
-        )
-
+        text = f"ID {row[0]}\\nDomanda: {row[2]}\\n"
+        text += f"Opzioni: {len(json.loads(row[3]))}\\n"
         keyboard = [
-            [
-                InlineKeyboardButton("Invia ora", callback_data=f"send:{pid}"),
-                InlineKeyboardButton("Elimina", callback_data=f"del:{pid}")
-            ],
-            [
-                InlineKeyboardButton("Pausa" if active else "Riattiva", callback_data=f"toggle:{pid}")
-            ],
-            [
-                InlineKeyboardButton("Chiudi", callback_data="close")
-            ]
+            [InlineKeyboardButton("Invia ora", callback_data=f"send:{pid}"), InlineKeyboardButton("Elimina", callback_data=f"del:{pid}")],
+            [InlineKeyboardButton("Pausa" if active else "Riattiva", callback_data=f"toggle:{pid}")],
+            [InlineKeyboardButton("Chiudi", callback_data="close")]
         ]
-
         await query.message.edit_text(text, reply_markup=InlineKeyboardMarkup(keyboard))
         await query.answer()
         return
-
     if data.startswith("send:"):
-        pid = int(data.split(":", 1)[1])
+        pid = int(data.split(":",1)[1])
         row = get_poll(pid)
         if row:
             await send_poll_from_row(context, row)
@@ -352,34 +327,23 @@ async def on_callback(update: Update, context: ContextTypes.DEFAULT_TYPE):
         else:
             await query.answer("Non trovato")
         return
-
     if data.startswith("del:"):
-        pid = int(data.split(":", 1)[1])
+        pid = int(data.split(":",1)[1])
         delete_poll_db(pid)
         await query.answer("Sondaggio eliminato")
-        try:
-            await query.message.delete()
-        except:
-            pass
+        await query.message.delete()
         return
-
     if data.startswith("toggle:"):
-        pid = int(data.split(":", 1)[1])
+        pid = int(data.split(":",1)[1])
         row = get_poll(pid)
         if not row:
             await query.answer("Non trovato")
             return
-        
         active = row[8] if USE_POSTGRES else row[8]
         set_active(pid, not bool(active))
         await query.answer("Stato cambiato")
-        
-        try:
-            await query.message.delete()
-        except:
-            pass
+        await query.message.delete()
         return
-
 
 # -----------------------------------------------------------------------------
 # Sending polls and scheduling
