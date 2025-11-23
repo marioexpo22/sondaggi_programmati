@@ -279,7 +279,7 @@ async def is_user_admin(chat_id:int, user_id:int, context:ContextTypes.DEFAULT_T
 
 async def admin_panel(update:Update, context:ContextTypes.DEFAULT_TYPE):
     # restrict to chat admins
-    if not is_user_admin(update.effective_chat.id, update.effective_user.id, context):
+    if not await is_user_admin(update.effective_chat.id, update.effective_user.id, context):
         await update.message.reply_text("Accesso negato: solo admin possono usare il pannello.")
         return
     polls = list_polls_for_chat(update.effective_chat.id)
@@ -294,7 +294,10 @@ async def admin_panel(update:Update, context:ContextTypes.DEFAULT_TYPE):
     keyboard.append([InlineKeyboardButton("Chiudi", callback_data="close")])
     await update.message.reply_text("Pannello Admin - seleziona un sondaggio:", reply_markup=InlineKeyboardMarkup(keyboard))
 
-async def on_callback(query, context):
+async def on_callback(update: Update, context: ContextTypes.DEFAULT_TYPE):
+    query = update.callback_query
+    if not query:
+        return  # Non è un callback — ignora
     data = query.data
     if data == "close":
         await query.message.delete()
