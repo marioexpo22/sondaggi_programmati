@@ -24,7 +24,7 @@ import dateutil.parser
 
 # DB: will use psycopg2 if DATABASE_URL provided that starts with 'postgres', otherwise sqlite3
 DATABASE_URL = os.environ.get("DATABASE_URL")
-DATABASE = os.environ.get("BOT_DB", "polls.db")
+#DATABASE = os.environ.get("BOT_DB", "polls.db")
 TIMEZONE = os.environ.get("TIMEZONE", "Europe/Rome")
 
 # Telegram
@@ -52,8 +52,8 @@ if DATABASE_URL and DATABASE_URL.startswith("postgres"):
 def get_conn():
     if USE_POSTGRES:
         return psycopg2.connect(DATABASE_URL)
-    conn = sqlite3.connect(DATABASE, check_same_thread=False)
-    return conn
+    #conn = sqlite3.connect(DATABASE, check_same_thread=False)
+    #return conn
 
 def init_db():
     if USE_POSTGRES:
