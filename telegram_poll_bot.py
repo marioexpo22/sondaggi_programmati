@@ -111,7 +111,7 @@ def execute(query: str, params: Tuple = ()):
     conn.close()
     return rows
 
-def add_poll(chat_id:int, question:str, options:List[str], interval_minutes:Optional[int], schedule_times:Optional[List[str]], pinned:bool, delete_previous:bool, creator_id:Optional[int]) -> int:
+def add_poll(chat_id:int, question:str, options:List[str], interval_minutes:Optional[int], schedule_times:Optional[List[str]], pinned:bool, delete_previous:int, creator_id:Optional[int]) -> int:
     optj = json.dumps(options, ensure_ascii=False)
     timesj = json.dumps(schedule_times) if schedule_times else None
     if USE_POSTGRES:
