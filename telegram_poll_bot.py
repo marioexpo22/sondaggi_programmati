@@ -111,12 +111,12 @@ def execute(query: str, params: Tuple = ()):
     conn.close()
     return rows
 
-def add_poll(chat_id:int, question:str, options:List[str], interval_minutes:Optional[int], schedule_times:Optional[List[str]], pinned:bool, delete_previous:int, creator_id:Optional[int]) -> int:
+def add_poll(chat_id:int, question:str, options:List[str], interval_minutes:Optional[int], schedule_times:Optional[List[str]], pinned:bool, delete_previous:bool, creator_id:Optional[int]) -> int:
     optj = json.dumps(options, ensure_ascii=False)
     timesj = json.dumps(schedule_times) if schedule_times else None
     if USE_POSTGRES:
         conn = get_conn(); cur = conn.cursor()
-        cur.execute("INSERT INTO polls (chat_id, question, options, interval_minutes, schedule_times, pinned, last_sent, last_message_id, delete_previous, active, creator_id) VALUES (%s,%s,%s,%s,%s,%s,0,NULL,%s,TRUE,%s) RETURNING id", (chat_id, question, optj, interval_minutes, timesj, pinned, 1 if delete_previous else 0, creator_id))
+        cur.execute("INSERT INTO polls (chat_id, question, options, interval_minutes, schedule_times, pinned, last_sent, last_message_id, delete_previous, active, creator_id) VALUES (%s,%s,%s,%s,%s,%s,0,NULL,%s,TRUE,%s) RETURNING id", (chat_id, question, optj, interval_minutes, timesj, pinned, 1 if delete_previous else False, creator_id))
         pid = cur.fetchone()[0]
         conn.commit(); conn.close()
         return pid
