@@ -294,31 +294,57 @@ async def admin_panel(update:Update, context:ContextTypes.DEFAULT_TYPE):
     keyboard.append([InlineKeyboardButton("Chiudi", callback_data="close")])
     await update.message.reply_text("Pannello Admin - seleziona un sondaggio:", reply_markup=InlineKeyboardMarkup(keyboard))
 
-async def on_callback(query, context):
-    data = query.data
-    if data == "close":
-        await query.message.delete()
+async def on_callback(update: Update, context: ContextTypes.DEFAULT_TYPE):
+    query = update.callback_query
+
+    # Protezione: l'update non è un callback → ignoriamo
+    if not query:
         return
+
+    data = query.data
+
+    if data == "close":
+        try:
+            await query.message.delete()
+        except:
+            pass
+        await query.answer()
+        return
+
     if data.startswith("view:"):
-        pid = int(data.split(":",1)[1])
+        pid = int(data.split(":", 1)[1])
         row = get_poll(pid)
         if not row:
             await query.answer("Sondaggio non trovato")
             return
-        # build action buttons
+        
         active = row[8] if USE_POSTGRES else row[8]
-        text = f"ID {row[0]}\\nDomanda: {row[2]}\\n"
-        text += f"Opzioni: {len(json.loads(row[3]))}\\n"
+
+        text = (
+            f"ID {row[0]}\n"
+            f"Domanda: {row[2]}\n"
+            f"Opzioni: {len(json.loads(row[3]))}\n"
+        )
+
         keyboard = [
-            [InlineKeyboardButton("Invia ora", callback_data=f"send:{pid}"), InlineKeyboardButton("Elimina", callback_data=f"del:{pid}")],
-            [InlineKeyboardButton("Pausa" if active else "Riattiva", callback_data=f"toggle:{pid}")],
-            [InlineKeyboardButton("Chiudi", callback_data="close")]
+            [
+                InlineKeyboardButton("Invia ora", callback_data=f"send:{pid}"),
+                InlineKeyboardButton("Elimina", callback_data=f"del:{pid}")
+            ],
+            [
+                InlineKeyboardButton("Pausa" if active else "Riattiva", callback_data=f"toggle:{pid}")
+            ],
+            [
+                InlineKeyboardButton("Chiudi", callback_data="close")
+            ]
         ]
+
         await query.message.edit_text(text, reply_markup=InlineKeyboardMarkup(keyboard))
         await query.answer()
         return
+
     if data.startswith("send:"):
-        pid = int(data.split(":",1)[1])
+        pid = int(data.split(":", 1)[1])
         row = get_poll(pid)
         if row:
             await send_poll_from_row(context, row)
@@ -327,23 +353,34 @@ async def on_callback(query, context):
         else:
             await query.answer("Non trovato")
         return
+
     if data.startswith("del:"):
-        pid = int(data.split(":",1)[1])
+        pid = int(data.split(":", 1)[1])
         delete_poll_db(pid)
         await query.answer("Sondaggio eliminato")
-        await query.message.delete()
+        try:
+            await query.message.delete()
+        except:
+            pass
         return
+
     if data.startswith("toggle:"):
-        pid = int(data.split(":",1)[1])
+        pid = int(data.split(":", 1)[1])
         row = get_poll(pid)
         if not row:
             await query.answer("Non trovato")
             return
+        
         active = row[8] if USE_POSTGRES else row[8]
         set_active(pid, not bool(active))
         await query.answer("Stato cambiato")
-        await query.message.delete()
+        
+        try:
+            await query.message.delete()
+        except:
+            pass
         return
+
 
 # -----------------------------------------------------------------------------
 # Sending polls and scheduling
