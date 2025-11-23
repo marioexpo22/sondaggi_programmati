@@ -294,8 +294,13 @@ async def admin_panel(update:Update, context:ContextTypes.DEFAULT_TYPE):
     keyboard.append([InlineKeyboardButton("Chiudi", callback_data="close")])
     await update.message.reply_text("Pannello Admin - seleziona un sondaggio:", reply_markup=InlineKeyboardMarkup(keyboard))
 
-async def on_callback(query, context):
+async def on_callback(update: Update, context):
+    query = update.callback_query
+    if not query:
+        return
+
     data = query.data
+
     if data == "close":
         await query.message.delete()
         return
