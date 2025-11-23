@@ -168,7 +168,7 @@ def delete_poll_db(poll_id:int):
 # -----------------------------------------------------------------------------
 # Bot handlers: creation conversation will allow either interval or schedule times
 # -----------------------------------------------------------------------------
-Q_QUESTION, Q_OPTIONS, Q_FLOWCHOICE, Q_INTERVAL, Q_SCHEDULE, Q_PIN = range(6)
+Q_QUESTION, Q_OPTIONS, Q_FLOWCHOICE, Q_INTERVAL, Q_SCHEDULE, Q_PIN, Q_DELETE_PREV = range(7)
 
 async def start(update:Update, context:ContextTypes.DEFAULT_TYPE):
     await update.message.reply_text("Bot avanzato attivo. /createpoll per creare un sondaggio. /admin per pannello amministratore.")
