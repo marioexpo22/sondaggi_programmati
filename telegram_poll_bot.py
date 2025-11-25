@@ -21,6 +21,7 @@ from typing import List, Optional, Tuple
 from datetime import datetime, time as dtime
 from zoneinfo import ZoneInfo
 import dateutil.parser
+import ast
 
 # DB: will use psycopg2 if DATABASE_URL provided that starts with 'postgres', otherwise sqlite3
 DATABASE_URL = os.environ.get("DATABASE_URL")
@@ -460,7 +461,8 @@ async def periodic_check(context:ContextTypes.DEFAULT_TYPE):
         if not active:
             continue
         if timesj:
-            for timej in timesj:
+            array_tm=ast.literal_eval(timesj)
+            for timej in array_tm:
                 print(timej, " - ", timeNow.strftime("%H:%M"))
                 if timej==timeNow.strftime("%H:%M"):
                     print("Qui si dovrebbe inviare il sondaggio")
