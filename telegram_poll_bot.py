@@ -460,6 +460,7 @@ async def periodic_check(context:ContextTypes.DEFAULT_TYPE):
             continue
         if timesj:
             for timej in timesj:
+                print("Ecco l'ora che si vuole confrontare: %s", timeNow.strftime("%H:%M"))
                 if timej and (timej==timeNow.strftime("%H:%M")):
                     await send_poll_from_row(context, row)
                     update_last_sent(pid, now)
