@@ -461,8 +461,7 @@ async def periodic_check(context:ContextTypes.DEFAULT_TYPE):
             continue
         if timesj:
             for timej in timesj:
-                print("Ecco l'ora che si vuole confrontare: %s", timeNow.strftime("%H:%M"))
-                if timej and (timej==timeNow.strftime("%H:%M")):
+                if (timej==timeNow.strftime("%H:%M")):
                     await send_poll_from_row(context, row)
                     update_last_sent(pid, now)
         elif mins and (last_sent==0 or now >= last_sent + mins*60):
@@ -506,7 +505,7 @@ def main():
     schedule_jobs(app)
 
     # periodic check for interval-based polls
-    app.job_queue.run_repeating(periodic_check, interval=60, first=20)
+    app.job_queue.run_repeating(periodic_check, interval=60, first=00)
 
     logger.info("Bot avviato.")
     app.run_polling()
