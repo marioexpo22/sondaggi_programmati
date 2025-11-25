@@ -450,6 +450,7 @@ async def daily_job_callback(context:ContextTypes.DEFAULT_TYPE):
 async def periodic_check(context:ContextTypes.DEFAULT_TYPE):
     """Check interval-based polls and send if due"""
     now = int(time.time())
+    timeNow = datetime.now()
     rows = execute("SELECT id,chat_id,question,options,interval_minutes,schedule_times,pinned,last_sent,last_message_id,delete_previous,active,creator_id FROM polls", ())
     if not rows:
         return
@@ -457,7 +458,10 @@ async def periodic_check(context:ContextTypes.DEFAULT_TYPE):
         pid, chat_id, question, opts_json, mins, timesj, pinned, last_sent, last_message_id, delete_previous, active, creator = row
         if not active:
             continue
-        if mins and (last_sent==0 or now >= last_sent + mins*60):
+        if timesj and (timesj==timeNow.strftime("%H:%M")):
+            await send_poll_from_row(context, row)
+            update_last_sent(pid, now)
+        elif mins and (last_sent==0 or now >= last_sent + mins*60):
             await send_poll_from_row(context, row)
             update_last_sent(pid, now)
 
