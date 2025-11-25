@@ -461,6 +461,7 @@ async def periodic_check(context:ContextTypes.DEFAULT_TYPE):
             continue
         if timesj:
             for timej in timesj:
+                print(timej, " - ", timeNow.strftime("%H:%M"))
                 if timej==timeNow.strftime("%H:%M"):
                     print("Qui si dovrebbe inviare il sondaggio")
                     await send_poll_from_row(context, row)
