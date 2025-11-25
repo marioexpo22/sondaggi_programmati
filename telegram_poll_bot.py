@@ -450,7 +450,8 @@ async def daily_job_callback(context:ContextTypes.DEFAULT_TYPE):
 async def periodic_check(context:ContextTypes.DEFAULT_TYPE):
     """Check interval-based polls and send if due"""
     now = int(time.time())
-    timeNow = datetime.now(TIMEZONE)
+    tz_Rome = ZoneInfo(TIMEZONE)
+    timeNow = datetime.now(tz=tz_Rome)
     rows = execute("SELECT id,chat_id,question,options,interval_minutes,schedule_times,pinned,last_sent,last_message_id,delete_previous,active,creator_id FROM polls", ())
     if not rows:
         return
