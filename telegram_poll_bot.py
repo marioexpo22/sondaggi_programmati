@@ -458,9 +458,11 @@ async def periodic_check(context:ContextTypes.DEFAULT_TYPE):
         pid, chat_id, question, opts_json, mins, timesj, pinned, last_sent, last_message_id, delete_previous, active, creator = row
         if not active:
             continue
-        if timesj and (timesj==timeNow.strftime("%H:%M")):
-            await send_poll_from_row(context, row)
-            update_last_sent(pid, now)
+        if timesj:
+            for timej in timesj:
+                if timej and (timej==timeNow.strftime("%H:%M")):
+                    await send_poll_from_row(context, row)
+                    update_last_sent(pid, now)
         elif mins and (last_sent==0 or now >= last_sent + mins*60):
             await send_poll_from_row(context, row)
             update_last_sent(pid, now)
