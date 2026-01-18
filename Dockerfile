@@ -9,4 +9,4 @@ RUN pip install --no-cache-dir -r requirements.txt
 
 COPY . .
 
-CMD ["python", "telegram_poll_bot_advanced_final.py"]
+CMD ["python", "telegram_poll_bot.py"]
