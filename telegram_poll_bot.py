@@ -513,7 +513,7 @@ def main():
     app.job_queue.run_repeating(periodic_check, interval=60, first=00)
 
     logger.info("Bot avviato.")
-    app.run_polling()
+    #app.run_polling()
 
 if __name__ == "__main__":
     main()
