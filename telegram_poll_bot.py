@@ -24,7 +24,7 @@ import dateutil.parser
 import ast
 
 # DB: will use psycopg2 if DATABASE_URL provided that starts with 'postgres', otherwise sqlite3
-DATABASE_URL = os.environ.get("DATABASE_URL")
+DATABASE_URL = os.environ["DATABASE_URL"]
 DATABASE = os.environ.get("BOT_DB", "polls.db")
 TIMEZONE = os.environ.get("TIMEZONE", "Europe/Rome")
 
@@ -477,7 +477,7 @@ async def periodic_check(context:ContextTypes.DEFAULT_TYPE):
 # Main and setup handlers
 # -----------------------------------------------------------------------------
 def main():
-    BOT_TOKEN = os.environ.get("BOT_TOKEN")
+    BOT_TOKEN = os.environ["BOT_TOKEN"]
     if not BOT_TOKEN:
         print("BOT_TOKEN non impostato. Esco.")
         sys.exit(1)
