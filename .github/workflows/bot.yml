@@ -2,7 +2,7 @@ name: Telegram Poll Bot
 
 on:
   schedule:
-    - cron: "*/1 * * * *"   # ogni minuto
+    - cron: "*/0.5 * * * *"   # ogni minuto
   workflow_dispatch:
 
 jobs:
