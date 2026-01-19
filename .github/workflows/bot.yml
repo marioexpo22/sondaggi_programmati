@@ -13,7 +13,7 @@ jobs:
       - uses: actions/setup-python@v5
         with:
           python-version: "3.11"
-      - run: pip install python-telegram-bot psycopg2-binary
+      - run: pip install python-telegram-bot psycopg2-binary python-telegram-bot[job-queue]
       - run: python telegram_poll_bot.py
         env:
           BOT_TOKEN: ${{ secrets.BOT_TOKEN }}
