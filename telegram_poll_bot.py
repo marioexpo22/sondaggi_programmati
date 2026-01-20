@@ -16,34 +16,13 @@ import sys
 import json
 import time
 import logging
+import ast
 import sqlite3
 from typing import List, Optional, Tuple
 from datetime import datetime, time as dtime
 from zoneinfo import ZoneInfo
-import ast
-from flask import Flask
-import threading
 
-
-# --- HTTP server minimo per Render ---
-http_app = Flask(__name__)
-
-@http_app.route("/")
-def home():
-    return "Bot Telegram attivo", 200
-
-
-def run_http():
-    port = int(os.environ.get("PORT", 10000))
-    http_app.run(host="0.0.0.0", port=port)
-
-
-# DB: will use psycopg2 if DATABASE_URL provided that starts with 'postgres', otherwise sqlite3
-DATABASE_URL = os.environ.get("DATABASE_URL")
-DATABASE = os.environ.get("BOT_DB", "polls.db")
-TIMEZONE = os.environ.get("TIMEZONE", "Europe/Rome")
-
-# Telegram
+# Telegram imports
 from telegram import Update, InlineKeyboardMarkup, InlineKeyboardButton
 from telegram.constants import ChatType
 from telegram.ext import (
@@ -51,8 +30,18 @@ from telegram.ext import (
     MessageHandler, filters, CallbackQueryHandler
 )
 
+# Configurazione Logging
 logging.basicConfig(level=logging.INFO, format="%(asctime)s [%(levelname)s] %(message)s")
 logger = logging.getLogger("pollbot-adv")
+
+# --- CONFIGURAZIONE VARIABILI ---
+DATABASE_URL = os.environ.get("DATABASE_URL") # Inserisci la stringa di Supabase su Render
+DATABASE = os.environ.get("polls.db")
+TIMEZONE = os.environ.get("TIMEZONE", "Europe/Rome")
+BOT_TOKEN = os.environ.get("BOT_TOKEN")
+# URL di Render (es. https://tuo-bot.onrender.com)
+RENDER_EXTERNAL_URL = os.environ.get("RENDER_EXTERNAL_URL") 
+PORT = int(os.environ.get("PORT", 10000))
 
 # DB helpers
 USE_POSTGRES = False
@@ -492,12 +481,6 @@ async def periodic_check(context:ContextTypes.DEFAULT_TYPE):
 # Main and setup handlers
 # -----------------------------------------------------------------------------
 def main():
-    # Avvio server HTTP per Render
-    t = threading.Thread(target=run_http)
-    t.daemon = True
-    t.start()
-
-    BOT_TOKEN = os.environ.get("BOT_TOKEN")
     if not BOT_TOKEN:
         print("BOT_TOKEN non impostato. Esco.")
         sys.exit(1)
@@ -532,8 +515,20 @@ def main():
     # periodic check for interval-based polls
     app.job_queue.run_repeating(periodic_check, interval=60, first=00)
 
-    logger.info("Bot avviato.")
-    app.run_polling()
+    # --- LOGICA DI DEPLOYMENT ---
+    if RENDER_EXTERNAL_URL:
+        # Configurazione WEBHOOK (Ideale per Render Free)
+        logger.info(f"Avvio in modalità WEBHOOK sulla porta {PORT}")
+        app.run_webhook(
+            listen="0.0.0.0",
+            port=PORT,
+            url_path=BOT_TOKEN,
+            webhook_url=f"{RENDER_EXTERNAL_URL}/{BOT_TOKEN}"
+        )
+    else:
+        # Configurazione POLLING (Per test locale)
+        logger.info("Avvio in modalità POLLING (Locale)")
+        app.run_polling()
 
 if __name__ == "__main__":
     main()

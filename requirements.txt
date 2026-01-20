@@ -1,8 +1,5 @@
-python-telegram-bot[job-queue]==20.*
-httpx==0.25.2
-psycopg2-binary==2.9.6
-python-dateutil==2.8.2
-fastapi==0.95.2
-uvicorn==0.22.0
-Jinja2==3.1.2
-flask==3.0.0
+python-telegram-bot[job-queue,webhooks]==21.10
+psycopg2-binary==2.9.10
+flask==3.1.0
+python-dotenv==1.0.1
+pytz==2025.1
