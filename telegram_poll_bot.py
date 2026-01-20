@@ -515,5 +515,17 @@ def main():
     logger.info("Bot avviato.")
     app.run_polling()
 
+from flask import Flask
+
+application = Flask(__name__)
+
+@application.route("/health")
+def health():
+    return "OK", 200
+
 if __name__ == "__main__":
+    # Start Flask in a background thread
+    import threading
+    threading.Thread(target=application.run, kwargs={"host":"0.0.0.0","port":10000}).start()
+    
     main()
