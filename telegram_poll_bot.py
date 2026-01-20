@@ -20,7 +20,6 @@ import sqlite3
 from typing import List, Optional, Tuple
 from datetime import datetime, time as dtime
 from zoneinfo import ZoneInfo
-import dateutil.parser
 import ast
 from flask import Flask
 import threading
@@ -40,7 +39,7 @@ def run_http():
 
 
 # DB: will use psycopg2 if DATABASE_URL provided that starts with 'postgres', otherwise sqlite3
-DATABASE_URL = os.environ["DATABASE_URL"]
+DATABASE_URL = os.environ.get("DATABASE_URL")
 DATABASE = os.environ.get("BOT_DB", "polls.db")
 TIMEZONE = os.environ.get("TIMEZONE", "Europe/Rome")
 
@@ -236,15 +235,15 @@ async def set_interval(update:Update, context:ContextTypes.DEFAULT_TYPE):
     await update.message.reply_text("Vuoi pinnare il sondaggio? (sì/no)")
     return Q_PIN
 
-def valid_times_list(text:str) -> Optional[List[str]]:
+def valid_times_list(text:str):
     parts = [p.strip() for p in text.split(",") if p.strip()]
     out = []
     for p in parts:
         try:
-            dt = dateutil.parser.parse(p)
+            datetime.strptime(p, "%H:%M")
             # keep HH:MM
-            out.append(dt.strftime("%H:%M"))
-        except Exception:
+            out.append(p)
+        except ValueError:
             return None
     return out
 
@@ -498,7 +497,7 @@ def main():
     t.daemon = True
     t.start()
 
-    BOT_TOKEN = os.environ["BOT_TOKEN"]
+    BOT_TOKEN = os.environ.get("BOT_TOKEN")
     if not BOT_TOKEN:
         print("BOT_TOKEN non impostato. Esco.")
         sys.exit(1)
