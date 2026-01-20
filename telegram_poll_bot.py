@@ -528,6 +528,17 @@ def main():
 
     # --- LOGICA DI DEPLOYMENT ---
     if RENDER_EXTERNAL_URL:
+
+        # Nel main(), prima di far partire il webhook
+        async def health_check_root(update, context):
+        # Questa funzione non verrà mai chiamata da Telegram, 
+        # ma serve a noi per "occupare" la rotta se usassimo un server web.
+            pass
+
+        # Se vuoi gestire la root "/" in modo che risponda 200:
+        # Molti sviluppatori usano un piccolo server Flask parallelo o 
+        # configurano il webhook per accettare anche la root.
+
         # Configurazione WEBHOOK (Ideale per Render Free)
         logger.info(f"Avvio in modalità WEBHOOK sulla porta {PORT}")
         app.run_webhook(
