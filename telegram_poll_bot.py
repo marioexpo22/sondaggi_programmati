@@ -22,6 +22,22 @@ from datetime import datetime, time as dtime
 from zoneinfo import ZoneInfo
 import dateutil.parser
 import ast
+from flask import Flask
+import threading
+
+
+# --- HTTP server minimo per Render ---
+http_app = Flask(__name__)
+
+@http_app.route("/")
+def home():
+    return "Bot Telegram attivo", 200
+
+
+def run_http():
+    port = int(os.environ.get("PORT", 10000))
+    http_app.run(host="0.0.0.0", port=port)
+
 
 # DB: will use psycopg2 if DATABASE_URL provided that starts with 'postgres', otherwise sqlite3
 DATABASE_URL = os.environ["DATABASE_URL"]
@@ -477,6 +493,11 @@ async def periodic_check(context:ContextTypes.DEFAULT_TYPE):
 # Main and setup handlers
 # -----------------------------------------------------------------------------
 def main():
+    # Avvio server HTTP per Render
+    t = threading.Thread(target=run_http)
+    t.daemon = True
+    t.start()
+
     BOT_TOKEN = os.environ["BOT_TOKEN"]
     if not BOT_TOKEN:
         print("BOT_TOKEN non impostato. Esco.")
@@ -515,17 +536,5 @@ def main():
     logger.info("Bot avviato.")
     app.run_polling()
 
-from flask import Flask
-
-application = Flask(__name__)
-
-@application.route("/health")
-def health():
-    return "OK", 200
-
 if __name__ == "__main__":
-    # Start Flask in a background thread
-    import threading
-    threading.Thread(target=application.run, kwargs={"host":"0.0.0.0","port":10000}).start()
-    
     main()
