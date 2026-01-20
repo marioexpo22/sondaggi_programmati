@@ -481,6 +481,17 @@ async def periodic_check(context:ContextTypes.DEFAULT_TYPE):
 # Main and setup handlers
 # -----------------------------------------------------------------------------
 def main():
+
+    # Aggiungi questo nel main() per rispondere a UptimeRobot sulla root "/"
+    from telegram.ext import TypeHandler
+    from telegram import Update
+
+    async def health_check(update, context):
+        return # Non fa nulla, ma conferma che il server è vivo
+
+    # Aggiungi un handler che risponde a qualsiasi cosa arrivi sulla root (opzionale)
+    # Oppure, più semplicemente, usa un servizio diverso.
+
     if not BOT_TOKEN:
         print("BOT_TOKEN non impostato. Esco.")
         sys.exit(1)
