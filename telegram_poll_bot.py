@@ -21,6 +21,7 @@ import sqlite3
 from typing import List, Optional, Tuple
 from datetime import datetime, time as dtime
 from zoneinfo import ZoneInfo
+from flask import Flask
 
 # Telegram imports
 from telegram import Update, InlineKeyboardMarkup, InlineKeyboardButton
@@ -53,6 +54,17 @@ if DATABASE_URL and DATABASE_URL.startswith("postgres"):
     except Exception as e:
         logger.warning("psycopg2 non disponibile o errore import: %s. Uso SQLite.", e)
         USE_POSTGRES = False
+
+http_app = Flask(__name__)
+@http_app.route("/")
+def home():
+    # Rispondendo 200 OK qui, Render capirà che il servizio è attivo
+    return "Bot is Running", 200
+
+# Se vuoi che anche il monitor di Cron-job passi senza errori
+@http_app.route(f"/{os.environ.get('BOT_TOKEN')}", methods=['GET'])
+def webhook_test():
+    return "Webhook port is open", 200
 
 def get_conn():
     if USE_POSTGRES:
@@ -496,6 +508,12 @@ def main():
         print("BOT_TOKEN non impostato. Esco.")
         sys.exit(1)
     init_db()
+
+    # Avvio server HTTP Flask in un thread separato (come avevi già fatto)
+    t = threading.Thread(target=run_http)
+    t.daemon = True
+    t.start()
+
     app = ApplicationBuilder().token(BOT_TOKEN).build()
 
     conv = ConversationHandler(
