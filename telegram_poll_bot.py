@@ -32,6 +32,28 @@ from telegram.ext import (
     MessageHandler, filters, CallbackQueryHandler
 )
 
+# --- HTTP server per Render ---
+http_app = Flask(__name__)
+
+@http_app.route("/")
+def home():
+    # Questa rotta serve per UptimeRobot o Cron-job (senza token)
+    return "OK - Bot is running", 200
+
+@http_app.route("/health")
+def health():
+    # Una rotta extra di sicurezza
+    return "Healthy", 200
+
+def run_http():
+    # Render assegna una porta dinamica tramite la variabile d'ambiente PORT
+    port = int(os.environ.get("PORT", 10000))
+    try:
+        # host 0.0.0.0 è fondamentale per essere visibili all'esterno su Render
+        http_app.run(host="0.0.0.0", port=port, debug=False, use_reloader=False)
+    except Exception as e:
+        print(f"Errore nell'avvio del server HTTP: {e}")
+
 # Configurazione Logging
 logging.basicConfig(level=logging.INFO, format="%(asctime)s [%(levelname)s] %(message)s")
 logger = logging.getLogger("pollbot-adv")
@@ -55,21 +77,6 @@ if DATABASE_URL and DATABASE_URL.startswith("postgres"):
     except Exception as e:
         logger.warning("psycopg2 non disponibile o errore import: %s. Uso SQLite.", e)
         USE_POSTGRES = False
-
-http_app = Flask(__name__)
-@http_app.route("/")
-def home():
-    # Rispondendo 200 OK qui, Render capirà che il servizio è attivo
-    return "Bot is Running", 200
-
-# Se vuoi che anche il monitor di Cron-job passi senza errori
-@http_app.route(f"/{os.environ.get('BOT_TOKEN')}", methods=['GET'])
-def webhook_test():
-    return "Webhook port is open", 200
-
-def run_http():
-    port = int(os.environ.get("PORT", 10000))
-    http_app.run(host="0.0.0.0", port=port)
 
 def get_conn():
     if USE_POSTGRES:
@@ -503,21 +510,15 @@ def main():
     from telegram.ext import TypeHandler
     from telegram import Update
 
-    async def health_check(update, context):
-        return # Non fa nulla, ma conferma che il server è vivo
-
-    # Aggiungi un handler che risponde a qualsiasi cosa arrivi sulla root (opzionale)
-    # Oppure, più semplicemente, usa un servizio diverso.
+    # Avvio server HTTP Flask in un thread separato (come avevi già fatto)
+    t = threading.Thread(target=run_http)
+    t.daemon = True
+    t.start()
 
     if not BOT_TOKEN:
         print("BOT_TOKEN non impostato. Esco.")
         sys.exit(1)
     init_db()
-
-    # Avvio server HTTP Flask in un thread separato (come avevi già fatto)
-    t = threading.Thread(target=run_http)
-    t.daemon = True
-    t.start()
 
     app = ApplicationBuilder().token(BOT_TOKEN).build()
 
