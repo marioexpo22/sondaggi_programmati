@@ -14,7 +14,6 @@ Features:
 import os
 import sys
 import json
-import threading
 import time
 import logging
 import ast
@@ -22,7 +21,6 @@ import sqlite3
 from typing import List, Optional, Tuple
 from datetime import datetime, time as dtime
 from zoneinfo import ZoneInfo
-from flask import Flask
 
 # Telegram imports
 from telegram import Update, InlineKeyboardMarkup, InlineKeyboardButton
@@ -31,28 +29,6 @@ from telegram.ext import (
     ApplicationBuilder, CommandHandler, ContextTypes, ConversationHandler,
     MessageHandler, filters, CallbackQueryHandler
 )
-
-# --- HTTP server per Render ---
-http_app = Flask(__name__)
-
-@http_app.route("/")
-def home():
-    # Questa rotta serve per UptimeRobot o Cron-job (senza token)
-    return "OK - Bot is running", 200
-
-@http_app.route("/health")
-def health():
-    # Una rotta extra di sicurezza
-    return "Healthy", 200
-
-def run_http():
-    # Render assegna una porta dinamica tramite la variabile d'ambiente PORT
-    port = int(os.environ.get("PORT", 10000))
-    try:
-        # host 0.0.0.0 è fondamentale per essere visibili all'esterno su Render
-        http_app.run(host="0.0.0.0", port=port, debug=False, use_reloader=False)
-    except Exception as e:
-        print(f"Errore nell'avvio del server HTTP: {e}")
 
 # Configurazione Logging
 logging.basicConfig(level=logging.INFO, format="%(asctime)s [%(levelname)s] %(message)s")
@@ -505,16 +481,6 @@ async def periodic_check(context:ContextTypes.DEFAULT_TYPE):
 # Main and setup handlers
 # -----------------------------------------------------------------------------
 def main():
-
-    # Aggiungi questo nel main() per rispondere a UptimeRobot sulla root "/"
-    from telegram.ext import TypeHandler
-    from telegram import Update
-
-    # Avvio server HTTP Flask in un thread separato (come avevi già fatto)
-    t = threading.Thread(target=run_http)
-    t.daemon = True
-    t.start()
-
     if not BOT_TOKEN:
         print("BOT_TOKEN non impostato. Esco.")
         sys.exit(1)
@@ -552,12 +518,6 @@ def main():
 
     # --- LOGICA DI DEPLOYMENT ---
     if RENDER_EXTERNAL_URL:
-
-        # Nel main(), prima di far partire il webhook
-        async def health_check_root(update, context):
-        # Questa funzione non verrà mai chiamata da Telegram, 
-        # ma serve a noi per "occupare" la rotta se usassimo un server web.
-            pass
 
         # Se vuoi gestire la root "/" in modo che risponda 200:
         # Molti sviluppatori usano un piccolo server Flask parallelo o 
