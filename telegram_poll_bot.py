@@ -14,6 +14,7 @@ Features:
 import os
 import sys
 import json
+import threading
 import time
 import logging
 import ast
@@ -65,6 +66,10 @@ def home():
 @http_app.route(f"/{os.environ.get('BOT_TOKEN')}", methods=['GET'])
 def webhook_test():
     return "Webhook port is open", 200
+
+def run_http():
+    port = int(os.environ.get("PORT", 10000))
+    http_app.run(host="0.0.0.0", port=port)
 
 def get_conn():
     if USE_POSTGRES:
