@@ -552,7 +552,7 @@ def main():
     schedule_jobs(app)
 
     # periodic check for interval-based polls
-    app.job_queue.run_repeating(periodic_check, interval=60, first=00)
+    app.job_queue.run_repeating(periodic_check, interval=60, first=10)
 
 # --- LOGICA DI DEPLOYMENT ---
     # Usiamo il POLLING perché la porta web è gestita da Flask per UptimeRobot
