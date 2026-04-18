@@ -1,4 +1,4 @@
-python-telegram-bot[job-queue,webhooks]==21.10
+python-telegram-bot[job-queue]==21.05
 psycopg2-binary==2.9.10
 flask==3.1.0
 python-dotenv==1.0.1
