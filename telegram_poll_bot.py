@@ -32,21 +32,12 @@ from telegram.ext import (
 
 
 from flask import Flask
-from threading import Thread
 
-app = Flask('')
+app = Flask(__name__)
 
-@app.route('/')
-def home():
-    return "I'm alive!"
-
-def run():
-  port = int(os.environ.get("PORT", 10000))
-  app.run(host='0.0.0.0', port=port)
-
-def keep_alive():
-    t = Thread(target=run)
-    t.start()
+@app.route('/')  # Questo gestisce l'indirizzo principale
+def index():
+    return "Bot is running!", 200 # Restituisce OK
 
 # Configurazione Logging
 logging.basicConfig(level=logging.INFO, format="%(asctime)s [%(levelname)s] %(message)s")
@@ -555,4 +546,7 @@ def main():
         app.run_polling()
 
 if __name__ == "__main__":
+    # Importante: usa la porta di Render
+    port = int(os.environ.get("PORT", 10000))
+    app.run(host='0.0.0.0', port=port)
     main()
