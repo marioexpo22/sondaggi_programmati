@@ -534,25 +534,12 @@ def main():
     # periodic check for interval-based polls
     app.job_queue.run_repeating(periodic_check, interval=60, first=00)
 
-    # --- LOGICA DI DEPLOYMENT ---
-    if RENDER_EXTERNAL_URL:
-
-        # Se vuoi gestire la root "/" in modo che risponda 200:
-        # Molti sviluppatori usano un piccolo server Flask parallelo o 
-        # configurano il webhook per accettare anche la root.
-
-        # Configurazione WEBHOOK (Ideale per Render Free)
-        logger.info(f"Avvio in modalità WEBHOOK sulla porta {PORT}")
-        app.run_webhook(
-            listen="0.0.0.0",
-            port=PORT,
-            url_path=BOT_TOKEN,
-            webhook_url=f"{RENDER_EXTERNAL_URL}/{BOT_TOKEN}"
-        )
-    else:
-        # Configurazione POLLING (Per test locale)
-        logger.info("Avvio in modalità POLLING (Locale)")
-        app.run_polling()
+# --- LOGICA DI DEPLOYMENT ---
+    # Usiamo il POLLING perché la porta web è gestita da Flask per UptimeRobot
+    logger.info("Avvio in modalità POLLING con Flask in background")
+    
+    # drop_pending_updates=True serve a cancellare eventuali webhook rimasti incastrati
+    app.run_polling(drop_pending_updates=True)
 
 if __name__ == "__main__":
     main()
