@@ -279,7 +279,27 @@ async def set_delete_prev(update:Update, context:ContextTypes.DEFAULT_TYPE):
     times = context.user_data.get('times')
     pinned = context.user_data.get('pinned', False)
     pid = add_poll(update.effective_chat.id, question, options, interval, times, pinned, delete_prev, update.effective_user.id)
-    await update.message.reply_text(f"Sondaggio creato con ID {pid}. delete_previous={delete_prev}")
+    
+    # NUOVO: Programma immediatamente il job giornaliero se ci sono orari specifici!
+    if times:
+        tz = ZoneInfo(TIMEZONE)
+        for t in times:
+            try:
+                hh, mm = map(int, t.split(":"))
+                target_time = dtime(hour=hh, minute=mm, tzinfo=tz)
+                # context.job_queue è disponibile qui dentro
+                context.job_queue.run_daily(
+                    daily_job_callback, 
+                    target_time, 
+                    days=(0,1,2,3,4,5,6), 
+                    name=f"poll_{pid}_{t}", 
+                    context=pid
+                )
+                logger.info(f"Sondaggio {pid} programmato in tempo reale per le {t}")
+            except Exception as e:
+                logger.warning(f"Errore nella programmazione real-time del sondaggio {pid}: {e}")
+
+    await update.message.reply_text(f"Sondaggio creato con ID {pid}. Elimina Precedente={delete_prev}")
     return ConversationHandler.END
 
 # -----------------------------------------------------------------------------
@@ -473,27 +493,27 @@ async def daily_job_callback(context:ContextTypes.DEFAULT_TYPE):
 async def periodic_check(context:ContextTypes.DEFAULT_TYPE):
     """Check interval-based polls and send if due"""
     now = int(time.time())
-    tz_Rome = ZoneInfo(TIMEZONE)
-    timeNow = datetime.now(tz=tz_Rome)
+    
     rows = execute("SELECT id,chat_id,question,options,interval_minutes,schedule_times,pinned,last_sent,last_message_id,delete_previous,active,creator_id FROM polls", ())
     if not rows:
         return
+        
     for row in rows:
         pid, chat_id, question, opts_json, mins, timesj, pinned, last_sent, last_message_id, delete_previous, active, creator = row
+        
+        # Se non è attivo, saltalo
         if not active:
             continue
-        if timesj:
-            array_tm=ast.literal_eval(timesj)
-            for timej in array_tm:
-                print(timej, " - ", timeNow.strftime("%H:%M"))
-                if timej==timeNow.strftime("%H:%M"):
-                    print("Qui si dovrebbe inviare il sondaggio")
-                    await send_poll_from_row(context, row)
-                    update_last_sent(pid, now)
-                    print("Sondaggio inviato!")
-        elif mins and (last_sent==0 or now >= last_sent + mins*60):
-            await send_poll_from_row(context, row)
-            update_last_sent(pid, now)
+            
+        # IMPORTANTE: Gestiamo QUI SOLO gli intervalli. 
+        # Gli orari specifici (timesj) sono gestiti dai job giornalieri (run_daily).
+        if mins and not timesj: 
+            # Se ha un intervallo e non è mai stato inviato, o è passato il tempo necessario
+            if last_sent == 0 or now >= last_sent + (mins * 60):
+                print(f"Invio sondaggio a intervallo {pid}...")
+                await send_poll_from_row(context, row)
+                update_last_sent(pid, now)
+                print("Sondaggio a intervallo inviato!")
 
 # -----------------------------------------------------------------------------
 # Main and setup handlers
