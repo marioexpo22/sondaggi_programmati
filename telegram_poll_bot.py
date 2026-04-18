@@ -293,7 +293,7 @@ async def set_delete_prev(update:Update, context:ContextTypes.DEFAULT_TYPE):
                     target_time, 
                     days=(0,1,2,3,4,5,6), 
                     name=f"poll_{pid}_{t}", 
-                    context=pid
+                    data=pid
                 )
                 logger.info(f"Sondaggio {pid} programmato in tempo reale per le {t}")
             except Exception as e:
@@ -478,13 +478,13 @@ def schedule_jobs(app):
                         # schedule daily at this time in tz - use job_queue.run_daily
                         target_time = dtime(hour=hh, minute=mm, tzinfo=tz)
                         # create job with name
-                        jq.run_daily(daily_job_callback, target_time, days=(0,1,2,3,4,5,6), name=f"poll_{pid}_{t}", context=pid)
+                        jq.run_daily(daily_job_callback, target_time, days=(0,1,2,3,4,5,6), name=f"poll_{pid}_{t}", data=pid)
                         logger.info("Scheduled daily job for poll %s at %s", pid, t)
                     except Exception as e:
                         logger.warning("Invalid time %s for poll %s: %s", t, pid, e)
 
 async def daily_job_callback(context:ContextTypes.DEFAULT_TYPE):
-    pid = context.job.context
+    pid = context.job.data
     row = get_poll(pid)
     if row:
         await send_poll_from_row(context, row)
